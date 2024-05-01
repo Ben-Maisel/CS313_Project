@@ -21,7 +21,7 @@ def record_video(filename, duration, update_progress_callback):
 
         out.write(frame)
 
-        # Update progress bar via the callback
+        # update progress bar 
         elapsed_time = (datetime.datetime.now() - start_time).seconds
         update_progress_callback(elapsed_time)
 
@@ -34,14 +34,14 @@ def record_video(filename, duration, update_progress_callback):
     print("Recording stopped.")
 
 def play_video_slow(filename):
-    # Open the video file
+    # open the video file
     cap = cv2.VideoCapture(filename)
     if not cap.isOpened():
         print("Error: Cannot open video file.")
         return
 
     fps = cap.get(cv2.CAP_PROP_FPS)
-    delay = int(1000 / fps * 2)  # Delay between frames in ms, doubled for half speed
+    delay = int(1000 / fps * 2)  # frame speed playback
 
     print("Playback at half speed...")
     while True:
@@ -50,7 +50,7 @@ def play_video_slow(filename):
             break
         
         cv2.imshow('Video Playback', frame)
-        if cv2.waitKey(delay) & 0xFF == ord('q'):  # Wait longer for half-speed playback
+        if cv2.waitKey(delay) & 0xFF == ord('q'): 
             break
 
     cap.release()
