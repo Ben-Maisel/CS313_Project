@@ -1,77 +1,80 @@
-import cv2
-import datetime
-
-def record_video(filename, duration):
-    # Capture video from the webcam
-    cap = cv2.VideoCapture(1)  
-    if not cap.isOpened():
-        print("Error: Cannot open webcam.")
-        return
-
-    # Define the codec and create VideoWriter object
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(filename, fourcc, 20.0, (640, 480))
-
-    start_time = datetime.datetime.now()
-    print("Recording started...")
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: Cannot capture frame.")
-            break
-        
-        out.write(frame)  # Write the frame into the file
-
-        # Show the frame on the screen (optional)
-        cv2.imshow('Webcam', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        # Stop recording after 'duration' seconds
-        if (datetime.datetime.now() - start_time).seconds > duration:
-            break
-
-    # Release everything when done
-    cap.release()
-    out.release()
-    cv2.destroyAllWindows()
-    print("Recording stopped.")
-
-def play_video_slow(filename):
-    # Open the video file
-    cap = cv2.VideoCapture(filename)
-    if not cap.isOpened():
-        print("Error: Cannot open video file.")
-        return
-
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    delay = int(1000 / fps * 2)  # Delay between frames in ms, doubled for half speed
-
-    print("Playback at half speed...")
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        
-        cv2.imshow('Video Playback', frame)
-        if cv2.waitKey(delay) & 0xFF == ord('q'):  # Wait longer for half-speed playback
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
+from functions import record_video, play_video_slow
+import threading
 
 # Set the filename and duration
 filename = "webcam_recording.avi"
-duration = 3  # record for 3 seconds
+duration = 1  # record for 2 seconds
 
-flag = False
+def start_recording():
+    def update_progress(elapsed_time):
+        progress['value'] = elapsed_time
+        root.update_idletasks()
 
-while not flag:
-    user_input = input("Type 'r' to start recording\n")
+    def recording_complete():
+        play_button.pack(pady=20)  # Show play button after recording
 
-    if user_input == 'r':
-        flag = True
+    threading.Thread(target=record_video_and_handle_completion, args=(filename, duration, update_progress, recording_complete)).start()
+    play_button.pack_forget()  # Hide play button during recording
 
-record_video(filename, duration)
-play_video_slow(filename)
+def record_video_and_handle_completion(filename, duration, update_progress, completion_callback):
+    record_video(filename, duration, update_progress)
+    root.after(0, completion_callback)  # Schedule the play button to show up after recording
+
+def start_playback():
+    play_video_slow(filename)
+
+def set_background_image():
+    image = Image.open("waves_background.jpg")  # Replace with your actual image path
+    resized_image = image.resize((root.winfo_width(), root.winfo_height()), Image.Resampling.LANCZOS)
+    bg_image = ImageTk.PhotoImage(resized_image)
+    bg_label.config(image=bg_image)
+    bg_label.image = bg_image  # Keep a reference!
+
+# Create the main window
+root = tk.Tk()
+root.title("Video Recorder")
+root.attributes('-fullscreen', True)
+
+bg_label = tk.Label(root)
+bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+root.bind('<Configure>', lambda event: set_background_image())  # Update background on resize
+
+
+
+def toggle_fullscreen():
+    root.attributes('-fullscreen', not root.attributes('-fullscreen'))
+
+# Styling
+style = ttk.Style(root)
+style.theme_use('clam')
+
+# Progress bar style
+style.configure('Horizontal.TProgressbar', background='#6E6449', troughcolor='#DDD5C7', thickness=20)
+
+# Button style
+style.configure('TButton', font=('Helvetica', 14, 'bold'), foreground='#FFFFFF', background='#8B8378')
+style.map('TButton',
+          foreground=[('pressed', '#FFFFFF'), ('active', '#FFFFFF')],
+          background=[('pressed', '!disabled', '#5C5346'), ('active', '#6E6449')])
+
+# Add a toggle button
+toggle_button = ttk.Button(root, text="Toggle Fullscreen", style='TButton', command=toggle_fullscreen)
+toggle_button.pack(pady=10, padx=10, fill=tk.X)
+
+# Create a progress bar
+progress = ttk.Progressbar(root, style='Horizontal.TProgressbar', orient="horizontal", length=400, mode="determinate", maximum=duration)
+progress.pack(pady=20, padx=10, fill=tk.X)
+
+# Create a button that will start the video recording
+record_button = ttk.Button(root, text="Start Recording", style='TButton', command=start_recording)
+record_button.pack(pady=20, padx=10, fill=tk.X)
+
+# Create a button to play the video, initially not visible
+play_button = ttk.Button(root, text="Play", style='TButton', command=start_playback)
+
+# Start the GUI event loop
+root.mainloop()
